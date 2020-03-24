@@ -1,8 +1,3 @@
----
-author: Steve Scargall
-title: Persistent Memory Test Suite - Intel Memory Latency Checker
----
-
 # pmts-mlc
 
 The [Intel&reg; Memory Latency Checker (MLC)](https://software.intel.com/en-us/articles/intelr-memory-latency-checker) is a tool used to measure memory latencies and bandwidth, and how they change with increasing load on the system. It provides several options for more fine-grained investigation where bandwidth and latencies from a specific set of cores to caches, volatile memory (DRAM), and persistent memory (PMem) can be measured.

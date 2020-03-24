@@ -1,8 +1,3 @@
----
-author: Steve Scargall
-title: Persistent Memory Test Suite (PMTS)
----
-
 # Persistent Memory Test Suite (PMTS)
 
 The Persistent Memory Test Suite (PMTS) is a collection of scripts to run popular benchmark tools on systems with Persistent Memory. 
