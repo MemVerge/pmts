@@ -83,6 +83,7 @@ VERSION="1.0.0"					# version string
 MLC=($(command -v mlc))                         # default, -m option to specify location of the mlc binary
 NDCTL=($(command -v ndctl))                     # default, -n option to specify location of the ndctl binary 
 IPMCTL=($(command -v ipmctl))                   # default, -i option to specify the location of the ipmctl binary 
+BC=($(command -v bc))				# Path to bc
 NUMACTL=($(command -v numactl))			# Path to numactl
 LSCPU=($(command -v lscpu))                     # Path to lscpu
 AWK=($(command -v awk))                         # Path to awk
@@ -143,7 +144,7 @@ function display_test_end_info() {
 function verify_cmds() {
    err_state=false
    if [ ! -x "${MLC}" ]; then
-     echo "ERROR: mlc command not found! Use -p to specify the path."
+     echo "ERROR: mlc command not found! Use -m to specify the path."
      err_state=true
    else 
      echo "Using MLC command: ${MLC}"
@@ -175,7 +176,7 @@ function verify_cmds() {
      echo "IPMCTL version: ${IPMCTL_VER}"
    fi
 
-   for CMD in awk sed numactl lscpu grep egrep mount wc mountpoint cut; do
+   for CMD in awk sed numactl lscpu grep egrep mount wc mountpoint cut bc; do
     CMD_PATH=($(command -v ${CMD}))
     if [ ! -x "${CMD_PATH}" ]; then
       echo "ERROR: ${CMD} command not found! Please install the ${CMD} package."
@@ -333,7 +334,7 @@ function validate_config() {
    fi
 
    # Create an array of DimmID and DeviceLocator information for error reporting 
-   DIMM_ID_LOCATOR=($(${EGREP} -w "DimmID|DeviceLocator" "${OUTPUT_PATH}/dimm_info.dat" | ${SED} -e "s/[- ]//g" | paste -d "=" - - | awk -F'[/=]' '{print $2"("$4")"}'))
+   DIMM_ID_LOCATOR=($(${EGREP} -w "DimmID|DeviceLocator" "${OUTPUT_PATH}/dimm_info.dat" | ${SED} -e "s/[- ]//g" | paste -d "=" - - | ${AWK} -F'[/=]' '{print $2"("$4")"}'))
    if [ -z ${DIMM_ID_LOCATOR} ]; then
      echo "ERROR: validate_config: Could not get a list of PMem Devices. Exiting"
      err_state=true
@@ -341,7 +342,7 @@ function validate_config() {
    fi 
 
    # Validate all DIMMs are Healthy
-   DIMMS_HEALTH=($(${GREP} -w "HeathState" "${OUTPUT_PATH}/dimm_info.dat" | cut -d'=' -f 2 | awk '{ print $1}'))
+   DIMMS_HEALTH=($(${GREP} -w "HeathState" "${OUTPUT_PATH}/dimm_info.dat" | cut -d'=' -f 2 | ${AWK} '{ print $1}'))
    for (( i=0; i<${#DIMMS_HEALTH[@]}; i++ )); do
      if [ "${DIMMS_HEALTH[i]}" != "Healthy" ]; then
        echo "ERROR: PMem DIMM ${DIMM_ID_LOCATOR[i]} is not in a 'Healthy' state. Please repair this DIMM and try again."
@@ -356,7 +357,7 @@ function validate_config() {
    fi
 
    # Validate all DIMMs are same size
-   DIMMS_SIZE=($(${GREP} -w "Capacity" "${OUTPUT_PATH}/dimm_info.dat" | cut -d'=' -f 2 | awk '{ print $1}'))
+   DIMMS_SIZE=($(${GREP} -w "Capacity" "${OUTPUT_PATH}/dimm_info.dat" | cut -d'=' -f 2 | ${AWK} '{ print $1}'))
    for (( i=0; i<${#DIMMS_SIZE[@]}; i++ )); do
      if [ "${DIMMS_SIZE[0]}" != "${DIMMS_SIZE[$i]}" ]; then
        echo "ERROR: This system has mixed capacity PMem DIMMs. It is not recommended to benchmark this config. Exiting."
@@ -367,13 +368,13 @@ function validate_config() {
    # Identify the DIMM capacity
    # The available capacity varies depending on the type
    DIMM_SIZE=${DIMMS_SIZE[0]}
-   if (( $(bc <<< "${DIMM_SIZE} > 116") )) && (( $(bc <<< "${DIMM_SIZE} < 128") )); then
+   if (( $(${BC} <<< "${DIMM_SIZE} > 116") )) && (( $(${BC} <<< "${DIMM_SIZE} < 128") )); then
      DIMM_SIZE=128
      DIMM_TYPE="SDP"
-   elif (( $(bc <<< "${DIMM_SIZE} > 245") )) && (( $(bc <<< "${DIMM_SIZE} < 256") )); then
+   elif (( $(${BC} <<< "${DIMM_SIZE} > 245") )) && (( $(${BC} <<< "${DIMM_SIZE} < 256") )); then
      DIMM_SIZE=256
      DIMM_TYPE="DDP"
-   elif (( $(bc <<< "${DIMM_SIZE} > 500") )) && (( $(bc <<< "${DIMM_SIZE} < 512") )); then
+   elif (( $(${BC} <<< "${DIMM_SIZE} > 500") )) && (( $(${BC} <<< "${DIMM_SIZE} < 512") )); then
      DIMM_SIZE=512
      DIMM_TYPE="QDP"
    else
@@ -384,7 +385,7 @@ function validate_config() {
 
    # Verify the ARS (Address Range Scrub) has completed. 
    # ARS is commonly started at boot time automatically (see BIOS Option), or manually initiated.
-   DIMMS_ARS_STATUS=($(${GREP} -w "ARSStatus" "${OUTPUT_PATH}/dimm_info.dat" | cut -d'=' -f 2 | awk '{ print $1}'))
+   DIMMS_ARS_STATUS=($(${GREP} -w "ARSStatus" "${OUTPUT_PATH}/dimm_info.dat" | cut -d'=' -f 2 | ${AWK} '{ print $1}'))
    for (( i=0; i<${#DIMMS_ARS_STATUS[@]}; i++ )); do
      if [ ${OPT_VERBOSITY} -ge 3 ]; then 
        echo "DEBUG: validate_config: ARS_Status for ${DIMM_ID_LOCATOR[i]} = ${DIMMS_ARS_STATUS[$i]}"
@@ -404,7 +405,7 @@ function validate_config() {
 
 
    # Validate all DIMMs have the same power budget
-   DIMMS_POWER_BUDGET=($(${GREP} -w "AvgPowerBudget" "${OUTPUT_PATH}/dimm_info.dat" | cut -d'=' -f 2 | awk '{ print $1}'))
+   DIMMS_POWER_BUDGET=($(${GREP} -w "AvgPowerBudget" "${OUTPUT_PATH}/dimm_info.dat" | cut -d'=' -f 2 | ${AWK} '{ print $1}'))
    for i in $(seq 0 $(($NUM_DIMMS-1))); do
      if [ "${DIMMS_POWER_BUDGET[0]}" != "${DIMMS_POWER_BUDGET[$i]}" ]; then
        echo "ERROR: PMem are not in same power budget. Please use same power budget for all PMem. Exiting."
@@ -452,7 +453,7 @@ function check_cpus() {
 
 # Verify the user supplied socket number is valid on this system
 function verify_cpu_socket() {
-   SOCKETS_IN_SYSTEM=$( lscpu | ${GREP} "Socket(s):" | awk '{print $2}' )
+   SOCKETS_IN_SYSTEM=$( lscpu | ${GREP} "Socket(s):" | ${AWK} '{print $2}' )
    if [ -z "${SOCKETS_IN_SYSTEM}" ]; then
      echo "ERROR: verify_cpu_socket: Could not identify the number of sockets in this system. Exiting."
      exit 1
@@ -526,7 +527,7 @@ function check_dimms() {
    NUM_DIMMS=0
 
    # First try with ndctl as we can follow the namespace to the DIMMs
-   DEV_PATH=$(mount | ${GREP} -w $PMEM_PATH | awk '{print $1;}')
+   DEV_PATH=$(mount | ${GREP} -w $PMEM_PATH | ${AWK} '{print $1;}')
    if [[ $DEV_PATH == /dev/pmem* ]]; then
      DEV=$(echo $DEV_PATH | cut -c10-)
      NUM_DIMMS=$(${NDCTL} list -DR -r $DEV | ${GREP} '"dimm":"' | wc -l)
@@ -637,7 +638,7 @@ function bandwidth() {
         fi
       fi
       ${MLC} --loaded_latency -d0 -o${PMem_PERTHREAD} -t${SAMPLE_TIME} -T ${Z} > ${OUTPUT_PATH}/${TOK[6]}
-      cat ${OUTPUT_PATH}/${TOK[6]} | ${SED} -n -e '/==========================/,$p' | tail -n+2 | awk '{print $3}'
+      cat ${OUTPUT_PATH}/${TOK[6]} | ${SED} -n -e '/==========================/,$p' | tail -n+2 | ${AWK} '{print $3}'
       sleep 3
    done
    echo "--- End ---"
@@ -711,7 +712,7 @@ function ramp_bandwidth() {
         fi
       fi
       ${MLC} --loaded_latency -d0 -o${PMem_PERTHREAD} -t${SAMPLE_TIME} -T ${Z} > ${OUTPUT_PATH}/${TOK[6]}
-      cat ${OUTPUT_PATH}/${TOK[6]} | ${SED} -n -e '/==========================/,$p' | tail -n+2 | awk '{print $3}'
+      cat ${OUTPUT_PATH}/${TOK[6]} | ${SED} -n -e '/==========================/,$p' | tail -n+2 | ${AWK} '{print $3}'
       sleep 3 #Cooldown time for MLC
    done
    echo "--- End ---"
