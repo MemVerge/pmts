@@ -21,6 +21,7 @@ The test suite requires the following:
 - grep/egrep
 - awk
 - sed
+- bc
 
 ## Running the Tests
 
