@@ -20,6 +20,7 @@ This script requires the following:
 - grep/egrep
 - awk
 - sed
+- bc
 
 
 
