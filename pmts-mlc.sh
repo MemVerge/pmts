@@ -78,7 +78,7 @@
 # Global Variables 
 #################################################################################################
 
-VERSION="1.0.1"					# version string
+VERSION="1.0.2"					# version string
 
 MLC=($(command -v mlc))                         # default, -m option to specify location of the mlc binary
 NDCTL=($(command -v ndctl))                     # default, -n option to specify location of the ndctl binary 
@@ -264,12 +264,6 @@ function display_usage() {
 # Process command arguments and options
 function process_args() {
 
-   # Verify the script is executed with root privileges
-   if [[ $EUID -ne 0 ]]; then
-      echo "Please run this script with root privilege"
-      exit 1
-   fi
-
    # Process the command arguments and options
    while getopts "h?a:i:lm:n:p:rs:vX" opt; do
       case "$opt" in
@@ -312,6 +306,12 @@ function process_args() {
 	 ;;
       esac
    done
+
+   # Verify the script is executed with root privileges
+   if [[ $EUID -ne 0 ]]; then
+      echo "Please run this script with root privilege or use -h to display help information."
+      exit 1
+   fi
 
    # Sanity check verbosity levels
    if [ ${OPT_VERBOSITY} -gt 3 ]; then
