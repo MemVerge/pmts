@@ -78,7 +78,7 @@
 # Global Variables 
 #################################################################################################
 
-VERSION="1.0.0"					# version string
+VERSION="1.0.1"					# version string
 
 MLC=($(command -v mlc))                         # default, -m option to specify location of the mlc binary
 NDCTL=($(command -v ndctl))                     # default, -n option to specify location of the ndctl binary 
@@ -368,13 +368,13 @@ function validate_config() {
    # Identify the DIMM capacity
    # The available capacity varies depending on the type
    DIMM_SIZE=${DIMMS_SIZE[0]}
-   if (( $(${BC} <<< "${DIMM_SIZE} > 116") )) && (( $(${BC} <<< "${DIMM_SIZE} < 128") )); then
+   if (( $( ${BC} <<< "${DIMM_SIZE} > 116") )) && (( $( ${BC} <<< "${DIMM_SIZE} < 128") )); then
      DIMM_SIZE=128
      DIMM_TYPE="SDP"
-   elif (( $(${BC} <<< "${DIMM_SIZE} > 245") )) && (( $(${BC} <<< "${DIMM_SIZE} < 256") )); then
+   elif (( $( ${BC} <<< "${DIMM_SIZE} > 245") )) && (( $( ${BC} <<< "${DIMM_SIZE} < 256") )); then
      DIMM_SIZE=256
      DIMM_TYPE="DDP"
-   elif (( $(${BC} <<< "${DIMM_SIZE} > 500") )) && (( $(${BC} <<< "${DIMM_SIZE} < 512") )); then
+   elif (( $( ${BC} <<< "${DIMM_SIZE} > 500") )) && (( $( ${BC} <<< "${DIMM_SIZE} < 512") )); then
      DIMM_SIZE=512
      DIMM_TYPE="QDP"
    else
@@ -406,23 +406,28 @@ function validate_config() {
 
    # Validate all DIMMs have the same power budget
    DIMMS_POWER_BUDGET=($(${GREP} -w "AvgPowerBudget" "${OUTPUT_PATH}/dimm_info.dat" | cut -d'=' -f 2 | ${AWK} '{ print $1}'))
-   for i in $(seq 0 $(($NUM_DIMMS-1))); do
-     if [ "${DIMMS_POWER_BUDGET[0]}" != "${DIMMS_POWER_BUDGET[$i]}" ]; then
-       echo "ERROR: PMem are not in same power budget. Please use same power budget for all PMem. Exiting."
-       exit 1;
+   if [ ! -z "${DIMMS_POWER_BUDGET}" ]; then 
+     for i in $(seq 0 $(($NUM_DIMMS-1))); do
+       if [ "${DIMMS_POWER_BUDGET[0]}" != "${DIMMS_POWER_BUDGET[$i]}" ]; then
+         echo "ERROR: PMem are not in same power budget. Please use same power budget for all PMem. Exiting."
+         exit 1;
+       fi
+     done
+     DIMM_POWER_BUDGET=${DIMMS_POWER_BUDGET[0]}
+     if (( ${DIMM_POWER_BUDGET} > 9500 )) && (( ${DIMM_POWER_BUDGET} < 11500 )); then
+       DIMM_POWER="10W"
+     elif (( ${DIMM_POWER_BUDGET} > 11501 )) && (( ${DIMM_POWER_BUDGET} < 14500 )); then
+       DIMM_POWER="12W"
+     elif (( ${DIMM_POWER_BUDGET} > 14501 )) && (( ${DIMM_POWER_BUDGET} < 17500 )); then
+       DIMM_POWER="15W"
+     elif (( ${DIMM_POWER_BUDGET} > 17501 )) && (( ${DIMM_POWER_BUDGET} < 21000 )); then
+       DIMM_POWER="18W"
+     else
+       echo "INFO: PMem DIMM power budget of '${DIMM_POWER_BUDGET}' is not supported"
      fi
-   done
-   DIMM_POWER_BUDGET=${DIMMS_POWER_BUDGET[0]}
-   if (( ${DIMM_POWER_BUDGET} > 9500 )) && (( ${DIMM_POWER_BUDGET} < 11500 )); then
-     DIMM_POWER="10W"
-   elif (( ${DIMM_POWER_BUDGET} > 11501 )) && (( ${DIMM_POWER_BUDGET} < 14500 )); then
-     DIMM_POWER="12W"
-   elif (( ${DIMM_POWER_BUDGET} > 14501 )) && (( ${DIMM_POWER_BUDGET} < 17500 )); then
-     DIMM_POWER="15W"
-   elif (( ${DIMM_POWER_BUDGET} > 17501 )) && (( ${DIMM_POWER_BUDGET} < 21000 )); then
-     DIMM_POWER="18W"
+     echo "PMem DIMM AvgPowerBudget: ${DIMM_POWER_BUDGET}"
    else
-     echo "DIMM power budget not supported"
+     echo "PMem DIMM AvgPowerBudget: Not Available"
    fi
 }
 
